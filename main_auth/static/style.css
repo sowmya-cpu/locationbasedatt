@@ -1,0 +1,112 @@
+/* style.css */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.tabs {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  margin: 0 10px;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.tab-button.active {
+  background-color: #0056b3;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.camera-container {
+  text-align: center;
+  margin: 10px 0;
+}
+
+video {
+  width: 100%;
+  max-width: 400px;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+}
+
+.preview {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.preview img {
+  width: 150px;
+  height: auto;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+  margin: 5px;
+}
+
+.capture-buttons {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.capture-buttons button {
+  padding: 10px 15px;
+  margin: 0 5px;
+  border: none;
+  background-color: #28a745;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+form label,
+form input {
+  margin: 5px;
+}
+
+form input[type="text"] {
+  padding: 8px;
+  width: 80%;
+  max-width: 300px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+form button[type="submit"] {
+  padding: 10px 20px;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-top: 10px;
+}

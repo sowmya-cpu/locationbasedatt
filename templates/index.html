@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Face Authentication Attendance</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Face Authentication Attendance</h1>
+    <div class="tabs">
+      <button id="show-register" class="tab-button active">Register</button>
+      <button id="show-verify" class="tab-button">Verify</button>
+    </div>
+
+    <!-- Registration Section -->
+    <div id="register-section" class="section">
+      <h2>User Registration</h2>
+      <form id="register-form">
+        <label for="register-username">Username:</label>
+        <input type="text" id="register-username" name="username" required>
+
+        <div class="camera-container">
+          <video id="register-video" autoplay></video>
+          <canvas id="register-canvas" style="display:none;"></canvas>
+        </div>
+
+        <div class="capture-buttons">
+          <button type="button" id="capture-smile">Capture Smile</button>
+          <button type="button" id="capture-angry">Capture Angry</button>
+        </div>
+
+        <div class="preview">
+          <div>
+            <p>Smile Preview:</p>
+            <img id="smile-preview" src="" alt="Smile Image Preview">
+          </div>
+          <div>
+            <p>Angry Preview:</p>
+            <img id="angry-preview" src="" alt="Angry Image Preview">
+          </div>
+        </div>
+
+        <button type="submit">Register</button>
+      </form>
+      <div id="register-response"></div>
+    </div>
+
+    <!-- Verification Section -->
+    <div id="verify-section" class="section" style="display:none;">
+      <h2>User Verification</h2>
+      <form id="verify-form">
+        <label for="verify-username">Username:</label>
+        <input type="text" id="verify-username" name="username" required>
+
+        <div class="camera-container">
+          <video id="verify-video" autoplay></video>
+          <canvas id="verify-canvas" style="display:none;"></canvas>
+        </div>
+
+        <div class="capture-buttons">
+          <button type="button" id="capture-verify">Capture Verification Image</button>
+        </div>
+
+        <div class="preview">
+          <p>Verification Image Preview:</p>
+          <img id="verify-preview" src="" alt="Verification Image Preview">
+        </div>
+
+        <button type="submit">Verify</button>
+      </form>
+      <div id="verify-response"></div>
+    </div>
+  </div>
+
+  <script src="{% static 'script.js' %}"></script>
+</body>
+</html>
