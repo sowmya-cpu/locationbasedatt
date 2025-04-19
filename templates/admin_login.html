@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="{% static 'style.css' %}">
+  <style>
+    /* (same styling as before) */
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h1>Admin Login</h1>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <!-- add autocomplete="off" here -->
+    <form method="post" autocomplete="off">
+      {% csrf_token %}
+      <label for="id_username">Username</label>
+      <!-- disable autofill on this field -->
+      <input
+        type="text" name="username" id="id_username"
+        placeholder="Enter username"
+        autocomplete="off" required
+      >
+
+      <label for="id_password">Password</label>
+      <!-- using new-password prevents autofill of stored credentials -->
+      <input
+        type="password" name="password" id="id_password"
+        placeholder="Enter password"
+        autocomplete="new-password" required
+      >
+
+      <button type="submit">Log in</button>
+    </form>
+  </div>
+</body>
+</html>

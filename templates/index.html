@@ -4,77 +4,107 @@
 <head>
   <meta charset="UTF-8">
   <title>Face Authentication Attendance</title>
-  <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
+  <link rel="stylesheet" href="{% static 'style.css' %}">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    /* Button shared styles */
+    #open-cam,
+    #open-cam-verify {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #FFCC00;
+      border: none;
+      cursor: pointer;
+      color: white;
+      border-radius: 5px;
+      margin-top: 40px;
+      margin-bottom: 40px;
+    }
+
+    /* Webcam containers */
+    #webcam-container,
+    #webcam-container-verify {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    video {
+      width: 640px;
+      height: 480px;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>Face Authentication Attendance</h1>
-    <div class="tabs">
-      <button id="show-register" class="tab-button active">Register</button>
-      <button id="show-verify" class="tab-button">Verify</button>
-    </div>
+    <header>
+      <form action="{% url 'admin_login' %}" method="get" style="margin-bottom:20px;" class="qbuttons">
+        <button type="submit">Admin Login</button>
+      </form>
+      <h1>Face Authentication Attendance</h1>
+      <div class="tabs">
+        <button id="show-register" class="tab-button active">Register</button>
+        <button id="show-verify" class="tab-button">Verify</button>
+      </div>
+    </header>
 
-    <!-- Registration Section -->
-    <div id="register-section" class="section">
-      <h2>User Registration</h2>
-      <form id="register-form">
-        <label for="register-username">Username:</label>
+    <!-- REGISTER SECTION -->
+    <div id="register-section" class="section" style="margin-top:70px;">
+      <form id="register-form" action="{% url 'register' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>UserName:</label>
         <input type="text" id="register-username" name="username" required>
 
-        <div class="camera-container">
+        <button id="open-cam" type="button" style="margin-left:400px">Open Cam</button>
+        <div id="webcam-container">
           <video id="register-video" autoplay></video>
-          <canvas id="register-canvas" style="display:none;"></canvas>
         </div>
+        <canvas id="register-canvas" style="display:none;"></canvas>
 
         <div class="capture-buttons">
-          <button type="button" id="capture-smile">Capture Smile</button>
-          <button type="button" id="capture-angry">Capture Angry</button>
+          <button type="button" id="capture-smile" style="margin-left:240px">Capture Smile</button>
+          <button type="button" id="capture-angry" style="margin-left:100px">Capture Angry</button>
         </div>
 
         <div class="preview">
-          <div>
-            <p>Smile Preview:</p>
-            <img id="smile-preview" src="" alt="Smile Image Preview">
-          </div>
-          <div>
-            <p>Angry Preview:</p>
-            <img id="angry-preview" src="" alt="Angry Image Preview">
-          </div>
+          <img id="smile-preview" alt="Smile Preview" style="margin-left:260px">
+          <img id="angry-preview" alt="Angry Preview">
         </div>
 
-        <button type="submit">Register</button>
+        <button type="submit" style="margin-left:400px">Register</button>
       </form>
       <div id="register-response"></div>
     </div>
 
-    <!-- Verification Section -->
-    <div id="verify-section" class="section" style="display:none;">
+    <!-- VERIFY SECTION -->
+    <div id="verify-section" class="section" style="display:none; margin-top:70px;">
       <h2>User Verification</h2>
-      <form id="verify-form">
-        <label for="verify-username">Username:</label>
+      <form id="verify-form" action="{% url 'verify' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>Username:</label>
         <input type="text" id="verify-username" name="username" required>
 
-        <div class="camera-container">
+        <button id="open-cam-verify" type="button" style="margin-left:400px">Open Cam</button>
+        <div id="webcam-container-verify">
           <video id="verify-video" autoplay></video>
-          <canvas id="verify-canvas" style="display:none;"></canvas>
         </div>
+        <canvas id="verify-canvas" style="display:none;"></canvas>
 
         <div class="capture-buttons">
-          <button type="button" id="capture-verify">Capture Verification Image</button>
+          <button type="button" id="capture-verify" style="margin-left:340px">Capture Verify Image</button>
         </div>
 
         <div class="preview">
-          <p>Verification Image Preview:</p>
-          <img id="verify-preview" src="" alt="Verification Image Preview">
+          <img id="verify-preview" alt="Verify Preview" style="margin-left:340px">
         </div>
 
-        <button type="submit">Verify</button>
+        <button type="submit" style="margin-left:400px">Verify</button>
       </form>
       <div id="verify-response"></div>
     </div>
   </div>
 
+  <!-- external JS -->
   <script src="{% static 'script.js' %}"></script>
 </body>
 </html>

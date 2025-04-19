@@ -1,169 +1,183 @@
-from django.shortcuts import render
+# main_auth/views.py
 
-# Create your views here.
-def home(request):
-    return render(request, "index.html")
+import math
+from datetime import time
+import traceback
 
 import cv2
 import numpy as np
+from django.contrib import messages
 from django.http import JsonResponse
+from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.db import IntegrityError
+
 from .models import UserProfile, Attendance
+from .face_utils import verify_face
+
+# Attempt to import pytz; fall back to zoneinfo if not installed
+try:
+    import pytz
+except ImportError:
+    from zoneinfo import ZoneInfo
+    class _PytzFallback:
+        @staticmethod
+        def timezone(name):
+            return ZoneInfo(name)
+    pytz = _PytzFallback()
+
 
 @csrf_exempt
+def index(request):
+    return render(request, "index.html")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def register(request):
-    """
-    Endpoint to register a user.
-    Expects POST data with:
-      - username: text field
-      - smile_image: file upload
-      - angry_image: file upload
-    """
-    if request.method == "POST":
-        username = request.POST.get('username')
-        smile_image = request.FILES.get('smile_image')
-        angry_image = request.FILES.get('angry_image')
-        
-        if not username or not smile_image or not angry_image:
-            return JsonResponse({'error': 'Missing username or images.'}, status=400)
-        
-        # Save the user profile (Django will store files in the defined MEDIA_ROOT)
-        user_profile = UserProfile(username=username, smile_image=smile_image, angry_image=angry_image)
-        user_profile.save()
-        return JsonResponse({'message': 'User registered successfully'})
-    
-    return JsonResponse({'error': 'Invalid HTTP method.'}, status=405)
+    username  = request.POST.get("username", "").strip()
+    smile_img = request.FILES.get("smile_image")
+    angry_img = request.FILES.get("angry_image")
 
-def compare_images(image1, image2):
-    """
-    A simple function that compares two images using grayscale histograms.
-    Returns a correlation value between the images.
-    """
-    # Convert to grayscale if necessary.
-    if len(image1.shape) == 3:
-        gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    else:
-        gray1 = image1
+    if not username or not smile_img or not angry_img:
+        return JsonResponse(
+            {"status": "failed", "error": "Missing username or images."},
+            status=400
+        )
 
-    if len(image2.shape) == 3:
-        gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
-    else:
-        gray2 = image2
-    
-    # Resize to a common size.
-    gray1 = cv2.resize(gray1, (100, 100))
-    gray2 = cv2.resize(gray2, (100, 100))
-    
-    # Calculate histograms.
-    hist1 = cv2.calcHist([gray1], [0], None, [256], [0, 256])
-    hist2 = cv2.calcHist([gray2], [0], None, [256], [0, 256])
-    
-    # Normalize the histograms.
-    cv2.normalize(hist1, hist1)
-    cv2.normalize(hist2, hist2)
-    
-    # Compare histograms (using correlation method).
-    correlation = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
-    return correlation
+    try:
+        UserProfile.objects.create(
+            username    = username,
+            smile_image = smile_img,
+            angry_image = angry_img
+        )
+    except IntegrityError:
+        return JsonResponse(
+            {"status": "failed", "error": "That username is already taken."},
+            status=409
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        return JsonResponse(
+            {"status": "failed", "error": str(e), "traceback": tb},
+            status=500
+        )
+
+    return JsonResponse(
+        {"status": "success", "message": "User registered successfully."},
+        status=201
+    )
+
 
 @csrf_exempt
 def verify(request):
-    """
-    Endpoint for attendance verification.
-    Expects POST data with:
-      - username: text field
-      - image: file upload (the image to verify)
-      - lat: latitude (string, e.g., "16.123123123")
-      - long: longitude (string, e.g., "80.12312")
-      
-    This endpoint:
-      - Verifies the face using stored "smile" and "angry" images.
-      - Checks if the provided location is within a defined radius of a hardcoded reference point.
-      - Ensures that attendance is only recorded once per user per day and only within the time window of 09:30 to 10:30 IST.
-      - For debug purposes, a boolean (DEBUG_BYPASS) allows bypassing the time requirement.
-    """
-    import math
-    from datetime import time
-    import pytz
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid HTTP method."}, status=405)
 
-    def haversine_distance(lat1, lon1, lat2, lon2):
-        # Earth's radius in meters
-        R = 6371000
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
-        a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return R * c
+    try:
+        username = request.POST.get("username")
+        img_file = request.FILES.get("image")
+        lat_str  = request.POST.get("lat")
+        lon_str  = request.POST.get("long")
 
-    # Debug bypass to ignore time window and one-attendance-per-day restriction.
-    DEBUG_BYPASS = True
+        if not (username and img_file and lat_str and lon_str):
+            return JsonResponse(
+                {"error": "Missing username, image, or coordinates."},
+                status=400
+            )
 
-    if request.method == "POST":
-        username = request.POST.get('username')
-        verification_image_file = request.FILES.get('image')
-        lat_str = request.POST.get('lat')
-        lon_str = request.POST.get('long')
-        
-        if not username or not verification_image_file or not lat_str or not lon_str:
-            return JsonResponse({'error': 'Missing username, verification image, or coordinates.'}, status=400)
-        
         try:
-            user_profile = UserProfile.objects.get(username=username)
+            profile = UserProfile.objects.get(username=username)
         except UserProfile.DoesNotExist:
-            return JsonResponse({'error': 'User does not exist.'}, status=404)
-        
-        # Convert coordinates to float.
+            return JsonResponse({"error": "User does not exist."}, status=404)
+
         try:
             user_lat = float(lat_str)
             user_lon = float(lon_str)
         except ValueError:
-            return JsonResponse({'error': 'Invalid coordinates.'}, status=400)
+            return JsonResponse({"error": "Invalid coordinates."}, status=400)
+
+        def haversine(lat1, lon1, lat2, lon2):
+            R = 6371000
+            φ1, φ2 = math.radians(lat1), math.radians(lat2)
+            Δφ  = math.radians(lat2 - lat1)
+            Δλ  = math.radians(lon2 - lon1)
+            a = math.sin(Δφ/2)**2 + math.cos(φ1)*math.cos(φ2)*math.sin(Δλ/2)**2
+            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+        REF_LAT, REF_LON = 16.7918843, 80.8211455
+        dist = int(haversine(user_lat, user_lon, REF_LAT, REF_LON))
+       
+
+        ist_now = timezone.now().astimezone(pytz.timezone("Asia/Kolkata"))
+        # time‑window check is commented out for now
+
+        img_file.seek(0)
+        if not verify_face(username=username, image_file=img_file):
+            return JsonResponse({"error": "Face verification failed."}, status=401)
+
+        today = ist_now.date()
+        attendance, created = Attendance.objects.get_or_create(
+            user=profile,
+            date=today,
+            defaults={"status": "present"}
+        )
         
-        # Hardcoded reference location and allowed radius.
-        REFERENCE_LAT = 16.5019648
-        REFERENCE_LON = 80.642048
-        ALLOWED_RADIUS_METERS = 100  # e.g., 100 meters
-        
-        distance = haversine_distance(user_lat, user_lon, REFERENCE_LAT, REFERENCE_LON)
-        if distance > ALLOWED_RADIUS_METERS:
-            return JsonResponse({'error': 'Location not within allowed range.'}, status=400)
-        
-        # Time check: Only allow attendance between 09:30 and 10:30 IST.
-        ist = pytz.timezone('Asia/Kolkata')
-        now_ist = timezone.now().astimezone(ist)
-        if not DEBUG_BYPASS:
-            if not (time(9, 30) <= now_ist.time() <= time(10, 30)):
-                return JsonResponse({'error': 'Attendance can only be marked between 09:30 and 10:30 IST.'}, status=400)
-        
-        # Read the provided image into a NumPy array for OpenCV.
-        file_bytes = np.asarray(bytearray(verification_image_file.read()), dtype=np.uint8)
-        verification_image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        
-        # Read stored images using their file paths.
-        smile_image_path = user_profile.smile_image.path
-        angry_image_path = user_profile.angry_image.path
-        
-        stored_smile_image = cv2.imread(smile_image_path)
-        stored_angry_image = cv2.imread(angry_image_path)
-        
-        # Compare the verification image with both stored images.
-        correlation_smile = compare_images(stored_smile_image, verification_image)
-        correlation_angry = compare_images(stored_angry_image, verification_image)
-        
-        # Define a threshold value (this value may need tuning).
-        threshold = 0.7
-        
-        if correlation_smile >= threshold or correlation_angry >= threshold:
-            # Check if attendance has already been marked today.
-            today = now_ist.date()
-            attendance, created = Attendance.objects.get_or_create(user=user_profile, date=today)
-            if not created and not DEBUG_BYPASS:
-                return JsonResponse({'error': 'Attendance already marked for today.'}, status=400)
-            return JsonResponse({'message': 'Attendance marked successfully.'})
-        else:
-            return JsonResponse({'error': 'Face verification failed.'}, status=400)
-    
-    return JsonResponse({'error': 'Invalid HTTP method.'}, status=405)
+        if not created :
+            return JsonResponse({"error": "Attendance already marked."}, status=400)
+
+        return JsonResponse({
+            "message":       "Attendance marked successfully.",
+            "distance_m":    dist,
+            "timestamp_ist": ist_now.isoformat()
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse(
+            {"error": "Internal server error.", "detail": str(e)},
+            status=500
+        )
+
+
+@csrf_exempt
+def admin_login(request):
+    error = ""
+    if request.method == "POST":
+        username = request.POST.get("username", "")
+        password = request.POST.get("password", "")
+        if username == "admin" and password == "k2hostel":
+            # simple flag so we know admin is “logged in”
+            request.session['is_admin'] = True
+            return redirect("today_attendance")
+        error = "Invalid credentials"
+    return render(request, "admin_login.html", {"error": error})
+
+
+def today_attendance(request):
+    if not request.session.get('is_admin'):
+        return redirect("admin_login")
+
+    # ← changed here so admin and verify use the same IST date
+    today = timezone.now().astimezone(pytz.timezone("Asia/Kolkata")).date()
+
+    profiles = UserProfile.objects.all().order_by("id")
+
+    attendance_qs = Attendance.objects.filter(date=today)
+    attendance_map = {att.user_id: att.status for att in attendance_qs}
+
+    records = []
+    for prof in profiles:
+        status = attendance_map.get(prof.id, "absent")
+        records.append({
+            "id":       prof.id,
+            "username": prof.username,
+            "status":   status.title(),
+        })
+
+    return render(request, "attendance_list.html", {
+        "records": records,
+        "today":   today,
+    })

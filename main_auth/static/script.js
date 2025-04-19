@@ -1,158 +1,163 @@
 $(document).ready(function() {
-  // Global variables to hold captured image blobs
-  var capturedSmileBlob = null;
-  var capturedAngryBlob = null;
-  var capturedVerifyBlob = null;
-  
-  // Start camera for a given video element
-  function startCamera(videoElementId) {
-    var video = document.getElementById(videoElementId);
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-      .then(function(stream) {
-        video.srcObject = stream;
-        video.play();
-      })
-      .catch(function(err) {
-        console.error("Error accessing camera: ", err);
-      });
-    } else {
-      alert("getUserMedia is not supported in this browser.");
-    }
-  }
-  
-  // Initialize both cameras
-  startCamera('register-video');
-  startCamera('verify-video');
-  
-  // Capture an image from video and return a blob and data URL
-  function captureImage(videoId, canvasId, callback) {
-    var video = document.getElementById(videoId);
-    var canvas = document.getElementById(canvasId);
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    var context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(function(blob) {
-      callback(blob, canvas.toDataURL());
-    }, 'image/jpeg');
-  }
-  
-  // Capture smile image
-  $('#capture-smile').click(function() {
-    captureImage('register-video', 'register-canvas', function(blob, dataUrl) {
-      capturedSmileBlob = blob;
-      $('#smile-preview').attr('src', dataUrl);
-    });
-  });
-  
-  // Capture angry image
-  $('#capture-angry').click(function() {
-    captureImage('register-video', 'register-canvas', function(blob, dataUrl) {
-      capturedAngryBlob = blob;
-      $('#angry-preview').attr('src', dataUrl);
-    });
-  });
-  
-  // Capture verification image
-  $('#capture-verify').click(function() {
-    captureImage('verify-video', 'verify-canvas', function(blob, dataUrl) {
-      capturedVerifyBlob = blob;
-      $('#verify-preview').attr('src', dataUrl);
-    });
-  });
-  
-  // Toggle between Register and Verify sections
+  // ----- Tab switching -----
   $('#show-register').click(function() {
     $('#register-section').show();
     $('#verify-section').hide();
     $('.tab-button').removeClass('active');
     $(this).addClass('active');
   });
-  
   $('#show-verify').click(function() {
     $('#register-section').hide();
     $('#verify-section').show();
     $('.tab-button').removeClass('active');
     $(this).addClass('active');
   });
-  
-  // AJAX submission for registration (without geolocation)
+
+  // ----- Open Cam: Register -----
+  const openCamButton = document.getElementById('open-cam');
+  const registerContainer = document.getElementById('webcam-container');
+  const registerVideo     = document.getElementById('register-video');
+  let registerStream;
+
+  openCamButton.addEventListener('click', function(e) {
+    e.preventDefault();
+    openCamButton.style.display = 'none';
+    registerContainer.style.display = 'block';
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        registerStream = stream;
+        registerVideo.srcObject = stream;
+      })
+      .catch(err => console.error('Error accessing register cam:', err));
+  });
+
+  // ----- Open Cam: Verify -----
+  const openCamVerifyButton   = document.getElementById('open-cam-verify');
+  const verifyContainer       = document.getElementById('webcam-container-verify');
+  const verifyVideo           = document.getElementById('verify-video');
+  let verifyStream;
+
+  openCamVerifyButton.addEventListener('click', function(e) {
+    e.preventDefault();
+    openCamVerifyButton.style.display = 'none';
+    verifyContainer.style.display = 'block';
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        verifyStream = stream;
+        verifyVideo.srcObject = stream;
+      })
+      .catch(err => console.error('Error accessing verify cam:', err));
+  });
+
+  // ----- Capture & Preview Logic -----
+  let capturedSmileBlob  = null;
+  let capturedAngryBlob  = null;
+  let capturedVerifyBlob = null;
+
+  function captureImage(videoEl, canvasEl, cb) {
+    const video  = document.getElementById(videoEl);
+    const canvas = document.getElementById(canvasEl);
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob(blob => cb(blob, canvas.toDataURL()), 'image/jpeg');
+  }
+
+  $('#capture-smile').click(() =>
+    captureImage('register-video','register-canvas', (b, url) => {
+      capturedSmileBlob = b;
+      $('#smile-preview').attr('src', url);
+    })
+  );
+
+  $('#capture-angry').click(() =>
+    captureImage('register-video','register-canvas', (b, url) => {
+      capturedAngryBlob = b;
+      $('#angry-preview').attr('src', url);
+    })
+  );
+
+  $('#capture-verify').click(() =>
+    captureImage('verify-video','verify-canvas', (b, url) => {
+      capturedVerifyBlob = b;
+      $('#verify-preview').attr('src', url);
+    })
+  );
+
+  // ----- AJAX Form Submissions -----
+  const BASE = window.location.origin;
+
   $('#register-form').submit(function(e) {
     e.preventDefault();
-    
-    var username = $('#register-username').val().trim();
-    if (!username) {
-      alert("Please enter a username.");
-      return;
-    }
-    if (!capturedSmileBlob || !capturedAngryBlob) {
-      alert("Please capture both smile and angry images.");
-      return;
-    }
-    
-    var formData = new FormData();
-    formData.append('username', username);
-    formData.append('smile_image', capturedSmileBlob, 'smile.jpg');
-    formData.append('angry_image', capturedAngryBlob, 'angry.jpg');
-    
+    const username = $('#register-username').val().trim();
+    if (!username) return alert("Please enter a username.");
+    if (!capturedSmileBlob || !capturedAngryBlob)
+      return alert("Capture both smile and angry images.");
+
+    const fd = new FormData();
+    fd.append('username', username);
+    fd.append('smile_image',  capturedSmileBlob, 'smile.jpg');
+    fd.append('angry_image',  capturedAngryBlob, 'angry.jpg');
+
     $.ajax({
-      url: '/register',
-      type: 'POST',
-      data: formData,
+      url:         BASE + '/register/',
+      type:        'POST',
+      data:        fd,
       processData: false,
       contentType: false,
-      success: function(response) {
-        $('#register-response').html('<p>' + response.message + '</p>');
+      success(res) {
+        $('#register-response').html(
+          `<p style="color:green">${res.message}</p>`
+        );
       },
-      error: function(xhr) {
-        $('#register-response').html('<p>Error: ' + xhr.responseJSON.error + '</p>');
+      error(xhr) {
+        const msg = xhr.responseJSON?.error || xhr.statusText;
+        $('#register-response').html(
+          `<p style="color:red">Error: ${msg}</p>`
+        );
       }
     });
   });
-  
-  // AJAX submission for verification (with geolocation)
+
   $('#verify-form').submit(function(e) {
     e.preventDefault();
-    
-    var username = $('#verify-username').val().trim();
-    if (!username) {
-      alert("Please enter a username.");
-      return;
-    }
-    if (!capturedVerifyBlob) {
-      alert("Please capture the verification image.");
-      return;
-    }
-    
-    // Get the user's geolocation only for verification
-    navigator.geolocation.getCurrentPosition(function(position) {
-      var lat = position.coords.latitude;
-      var lon = position.coords.longitude;
-      console.log(lat)
-      console.log(lon)
-      
-      var formData = new FormData();
-      formData.append('username', username);
-      formData.append('image', capturedVerifyBlob, 'verify.jpg');
-      formData.append('lat', lat);
-      formData.append('long', lon);
-      
+    const username = $('#verify-username').val().trim();
+    if (!username) return alert("Please enter a username.");
+    if (!capturedVerifyBlob) return alert("Please capture the verification image.");
+    if (!navigator.geolocation) return alert("Geolocation not supported.");
+
+    navigator.geolocation.getCurrentPosition(pos => {
+      const fd = new FormData();
+      fd.append('username', username);
+      fd.append('image', capturedVerifyBlob, 'verify.jpg');
+      fd.append('lat', pos.coords.latitude);
+      fd.append('long', pos.coords.longitude);
+
       $.ajax({
-        url: '/verify',
-        type: 'POST',
-        data: formData,
+        url:         BASE + '/verify/',
+        type:        'POST',
+        data:        fd,
         processData: false,
         contentType: false,
-        success: function(response) {
-          $('#verify-response').html('<p>' + response.message + '</p>');
+        success(res) {
+          $('#verify-response').html(
+            `<p style="color:green">${res.message}</p>`
+          );
         },
-        error: function(xhr) {
-          $('#verify-response').html('<p>Error: ' + xhr.responseJSON.error + '</p>');
+        error(xhr) {
+          if (xhr.status === 403) {
+            // instead of injecting the JSON error into the page...
+            alert('You are not in the specified location.');
+          } else {
+            // handle other errors as before
+            const msg = xhr.responseJSON?.error || xhr.statusText;
+            $('#verify-response').html(
+              `<p style="color:red">Error: ${msg}</p>`
+            );
+          }
         }
       });
-    }, function(error) {
-      alert("Unable to retrieve your location. Error: " + error.message);
     });
   });
 });

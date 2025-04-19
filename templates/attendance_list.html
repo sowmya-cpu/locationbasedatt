@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Today’s Attendance</title>
+  <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <img src="{% static 'user_icon.png' %}" alt="Admin">
+      <span>Today’s Attendance</span>
+    </div>
+  </header>
+
+  <div class="container section" style="max-width:600px;">
+    <h2>Attendance for {{ today }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        <tr>
+          <td>{{ rec.id }}</td>
+          <td>{{ rec.username }}</td>
+          <td>{{ rec.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

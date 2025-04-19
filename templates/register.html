@@ -1,0 +1,39 @@
+<!-- templates/register.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>FaceAuth Registration</title>
+  <!-- jQuery CDN -->
+  <script
+    src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJ+YtZN2jlD6bjFQ1jvFO9R9v2QpS+Z6z1a9w="
+    crossorigin="anonymous"></script>
+  <script src="{% static 'js/script.js' %}"></script>
+</head>
+<body>
+  <div class="tabs">
+    <button id="show-register" class="tab-button active">Register</button>
+    <button id="show-verify"   class="tab-button">Verify</button>
+  </div>
+
+  <section id="register-section">
+    <video id="register-video" autoplay muted></video>
+    <canvas id="register-canvas" style="display:none"></canvas>
+    <img id="smile-preview"  src="" alt="Smile preview">
+    <img id="angry-preview"  src="" alt="Angry preview">
+    <button id="capture-smile">Capture Smile</button>
+    <button id="capture-angry">Capture Angry</button>
+
+    <form id="register-form">
+      <input type="text" id="register-username" placeholder="Username">
+      <button type="submit">Register</button>
+    </form>
+    <div id="register-response"></div>
+  </section>
+
+  <section id="verify-section" style="display:none">
+    <!-- similarly your verify video/canvas and form… -->
+  </section>
+</body>
+</html>
